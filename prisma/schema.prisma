@@ -1,7 +1,7 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// ============================================================
+// PRAJNA — Professional AI Companion for GITAM Faculty
+// Database Schema v1.0
+// ============================================================
 
 generator client {
   provider = "prisma-client"
@@ -10,4 +10,917 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum CampusCode {
+  BENGALURU
+  VISAKHAPATNAM
+  HYDERABAD
+}
+
+enum Role {
+  FACULTY
+  HOD
+  DEAN
+  DIRECTOR
+  IQAC_COORDINATOR
+  SYSTEM_ADMIN
+}
+
+enum ApprovalStatus {
+  DRAFT
+  PENDING_HOD
+  PENDING_DEAN
+  PENDING_DIRECTOR
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum RecordSource {
+  NATIVE
+  MIGRATED
+}
+
+enum PublicationType {
+  JOURNAL
+  CONFERENCE
+  BOOK
+  BOOK_CHAPTER
+}
+
+enum PublicationIndexing {
+  SCI
+  SCOPUS
+  WOS
+  UGC_CARE
+  OTHER
+}
+
+enum PatentStatus {
+  FILED
+  PUBLISHED
+  GRANTED
+}
+
+enum ProjectStatus {
+  ONGOING
+  COMPLETED
+  TERMINATED
+}
+
+enum PhDStatus {
+  REGISTERED
+  COURSEWORK
+  SYNOPSIS_SUBMITTED
+  THESIS_SUBMITTED
+  AWARDED
+}
+
+enum FDPRole {
+  PARTICIPANT
+  ORGANIZER
+  RESOURCE_PERSON
+}
+
+enum LeaveType {
+  CASUAL
+  EARNED
+  MEDICAL
+  DUTY
+  MATERNITY
+  OTHER
+}
+
+enum AwardLevel {
+  UNIVERSITY
+  STATE
+  NATIONAL
+  INTERNATIONAL
+}
+
+enum ScoreTier {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+  PRAJNA_FELLOW
+}
+
+enum APARStatus {
+  OPEN
+  SUBMITTED
+  HOD_REVIEWED
+  DEAN_REVIEWED
+  COMPLETED
+}
+
+enum NotificationChannel {
+  EMAIL
+  WHATSAPP
+  SMS
+  IN_APP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  FALLBACK_SENT
+}
+
+enum DocumentStatus {
+  PENDING_SCAN
+  CLEAN
+  INFECTED
+}
+
+enum OTPPurpose {
+  MFA_LOGIN
+  PASSWORD_RESET
+}
+
+// ============================================================
+// ORGANISATIONAL HIERARCHY
+// ============================================================
+
+model Campus {
+  id        String     @id @default(cuid())
+  code      CampusCode @unique
+  name      String
+  schools   School[]
+  users     User[]
+  createdAt DateTime   @default(now())
+}
+
+model School {
+  id          String       @id @default(cuid())
+  name        String
+  campus      Campus       @relation(fields: [campusId], references: [id])
+  campusId    String
+  dean        User?        @relation("DeanOfSchool", fields: [deanId], references: [id])
+  deanId      String?      @unique
+  departments Department[]
+  createdAt   DateTime     @default(now())
+
+  @@unique([name, campusId])
+}
+
+model Department {
+  id        String         @id @default(cuid())
+  name      String
+  code      String
+  school    School         @relation(fields: [schoolId], references: [id])
+  schoolId  String
+  hod       User?          @relation("HoDOfDepartment", fields: [hodId], references: [id])
+  hodId     String?        @unique
+  faculty   User[]         @relation("FacultyInDepartment")
+  createdAt DateTime       @default(now())
+
+  @@unique([code, schoolId])
+}
+
+// ============================================================
+// USERS & AUTH
+// ============================================================
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  employeeId   Int         @unique
+  passwordHash String
+  role         Role
+  isActive     Boolean     @default(true)
+
+  campus       Campus      @relation(fields: [campusId], references: [id])
+  campusId     String
+  department   Department? @relation("FacultyInDepartment", fields: [departmentId], references: [id])
+  departmentId String?
+
+  // Role-specific back-relations
+  hodOf  Department? @relation("HoDOfDepartment")
+  deanOf School?     @relation("DeanOfSchool")
+
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  facultyProfile  FacultyProfile?
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+  aiConversations AIConversation[]
+  badgesReceived  AppreciationBadge[] @relation("BadgeRecipient")
+  badgesSent      AppreciationBadge[] @relation("BadgeSender")
+  approvalActions ApprovalRecord[]
+  refreshTokens   RefreshToken[]
+  otpCodes        OTPCode[]
+
+  @@index([campusId])
+  @@index([departmentId])
+  @@index([role])
+}
+
+// ============================================================
+// CLUSTER 1 — PERSONAL & PROFESSIONAL PROFILE
+// ============================================================
+
+model FacultyProfile {
+  id     String @id @default(cuid())
+  user   User   @relation(fields: [userId], references: [id])
+  userId String @unique
+
+  // Personal
+  firstName   String
+  lastName    String
+  dateOfBirth DateTime?
+  phone       String?
+  photo       String?   // S3 key
+
+  // Professional
+  designation String
+  joiningDate DateTime
+
+  // Qualifications
+  ugDegree       String?
+  ugInstitution  String?
+  ugYear         Int?
+  pgDegree       String?
+  pgInstitution  String?
+  pgYear         Int?
+  phdTitle       String?
+  phdInstitution String?
+  phdYear        Int?
+
+  // External academic IDs
+  orcidId         String?
+  scopusAuthorId  String?
+  googleScholarId String?
+  vidwanId        String?
+  linkedInUrl     String?
+
+  // Computed completeness (0–100), updated on every profile save
+  completenessScore Float @default(0)
+
+  source    RecordSource @default(NATIVE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  // Cluster relations
+  teachingAssignments TeachingAssignment[]
+  publications        Publication[]
+  grants              ResearchGrant[]
+  patents             Patent[]
+  phdScholars         PhDScholar[]
+  consultancies       Consultancy[]
+  mous                MoU[]
+  awards              Award[]
+  invitedTalks        InvitedTalk[]
+  memberships         ProfessionalMembership[]
+  editorialRoles      EditorialRole[]
+  fdps                FacultyDevelopment[]
+  moocs               MOOCCompletion[]
+  internationalVisits InternationalVisit[]
+  leaveRecords        LeaveRecord[]
+  apars               APAR[]
+  committeeRoles      CommitteeRole[]
+  examDuties          ExamDuty[]
+  prajnaScore         PrajnaScore?
+  dailyReflections    DailyReflection[]
+}
+
+// ============================================================
+// CLUSTER 2 — COURSE DELIVERABLES & TEACHING
+// ============================================================
+
+model TeachingAssignment {
+  id        String         @id @default(cuid())
+  profile   FacultyProfile @relation(fields: [profileId], references: [id])
+  profileId String
+
+  courseCode   String
+  courseName   String
+  academicYear String  // e.g. "2025-26"
+  semester     String  // e.g. "ODD", "EVEN"
+  section      String?
+  contactHours Int
+
+  // Populated from student feedback system (sync or manual)
+  attendancePercent Float?
+  feedbackScore     Float?
+
+  lessonPlanFile   String?        // S3 key (Document.id)
+  lessonPlanStatus ApprovalStatus @default(DRAFT)
+
+  coPoMappings     CoPoMapping[]
+  remedialSessions RemedialSession[]
+
+  source    RecordSource @default(NATIVE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([profileId, academicYear])
+}
+
+model CoPoMapping {
+  id               String             @id @default(cuid())
+  teachingAssignment TeachingAssignment @relation(fields: [assignmentId], references: [id])
+  assignmentId     String
+  co               String             // e.g. "CO1"
+  po               String             // e.g. "PO3"
+  correlationLevel Int                // 1 = Low, 2 = Medium, 3 = High
+}
+
+model RemedialSession {
+  id               String             @id @default(cuid())
+  teachingAssignment TeachingAssignment @relation(fields: [assignmentId], references: [id])
+  assignmentId     String
+  date             DateTime
+  topic            String
+  studentsCount    Int?
+  notes            String?
+}
+
+// ============================================================
+// CLUSTER 3 — RESEARCH & INNOVATION
+// ============================================================
+
+model Publication {
+  id        String         @id @default(cuid())
+  profile   FacultyProfile @relation(fields: [profileId], references: [id])
+  profileId String
+
+  type         PublicationType
+  title        String
+  doi          String?             @unique
+  issn         String?
+  isbn         String?
+  journal      String?
+  conference   String?
+  publisher    String?
+  year         Int
+  volume       String?
+  issue        String?
+  pages        String?
+  indexing     PublicationIndexing
+  impactFactor Float?
+  authors      String[]            // ordered list of author names
+
+  proofDocumentId String?          // Document.id
+  approvalStatus  ApprovalStatus   @default(PENDING_HOD)
+  approvalRecords ApprovalRecord[] @relation("PublicationApprovals")
+
+  source    RecordSource @default(NATIVE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([profileId])
+  @@index([approvalStatus])
+}
+
+model ResearchGrant {
+  id        String         @id @default(cuid())
+  profile   FacultyProfile @relation(fields: [profileId], references: [id])
+  profileId String
+
+  title                  String
+  agency                 String
+  amount                 Float
+  currency               String        @default("INR")
+  isPrincipalInvestigator Boolean      @default(true)
+  startDate              DateTime
+  endDate                DateTime?
+  status                 ProjectStatus @default(ONGOING)
+
+  proofDocumentId String?
+  approvalStatus  ApprovalStatus   @default(PENDING_HOD)
+  approvalRecords ApprovalRecord[] @relation("GrantApprovals")
+
+  source    RecordSource @default(NATIVE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model Patent {
+  id        String         @id @default(cuid())
+  profile   FacultyProfile @relation(fields: [profileId], references: [id])
+  profileId String
+
+  title             String
+  applicationNumber String?
+  grantNumber       String?
+  filingDate        DateTime?
+  grantDate         DateTime?
+  status            PatentStatus
+  country           String       @default("India")
+  inventors         String[]
+
+  proofDocumentId String?
+  approvalStatus  ApprovalStatus   @default(PENDING_HOD)
+  approvalRecords ApprovalRecord[] @relation("PatentApprovals")
+
+  source    RecordSource @default(NATIVE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model PhDScholar {
+  id        String         @id @default(cuid())
+  profile   FacultyProfile @relation(fields: [profileId], references: [id])
+  profileId String
+
+  scholarName      String
+  registrationNo   String?
+  topic            String
+  university       String    @default("GITAM")
+  registrationDate DateTime?
+  status           PhDStatus
+  awardedDate      DateTime?
+
+  approvalStatus  ApprovalStatus   @default(PENDING_HOD)
+  approvalRecords ApprovalRecord[] @relation("PhDScholarApprovals")
+
+  source    RecordSource @default(NATIVE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model Consultancy {
+  id        String         @id @default(cuid())
+  profile   FacultyProfile @relation(fields: [profileId], references: [id])
+  profileId String
+
+  title     String
+  client    String
+  amount    Float?
+  currency  String        @default("INR")
+  startDate DateTime
+  endDate   DateTime?
+  status    ProjectStatus
+
+  proofDocumentId String?
+  source          RecordSource @default(NATIVE)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+model MoU {
+  id        String         @id @default(cuid())
+  profile   FacultyProfile @relation(fields: [profileId], references: [id])
+  profileId String
+
+  partnerInstitution String
+  purpose            String
+  signedDate         DateTime
+  expiryDate         DateTime?
+
+  proofDocumentId String?
+  source          RecordSource @default(NATIVE)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+// ============================================================
+// CLUSTER 4 — ACHIEVEMENTS & RECOGNITION
+// ============================================================
+
+model Award {
+  id        String         @id @default(cuid())
+  profile   FacultyProfile @relation(fields: [profileId], references: [id])
+  profileId String
+
+  title       String
+  awardingBody String
+  level        AwardLevel
+  year         Int
+
+  proofDocumentId String?
+  approvalStatus  ApprovalStatus   @default(PENDING_HOD)
+  approvalRecords ApprovalRecord[] @relation("AwardApprovals")
+
+  source    RecordSource @default(NATIVE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model InvitedTalk {
+  id        String         @id @default(cuid())
+  profile   FacultyProfile @relation(fields: [profileId], references: [id])
+  profileId String
+
+  title       String
+  event       String
+  institution String
+  level       AwardLevel
+  date        DateTime
+
+  proofDocumentId String?
+  approvalStatus  ApprovalStatus   @default(PENDING_HOD)
+  approvalRecords ApprovalRecord[] @relation("InvitedTalkApprovals")
+
+  source    RecordSource @default(NATIVE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model ProfessionalMembership {
+  id        String         @id @default(cuid())
+  profile   FacultyProfile @relation(fields: [profileId], references: [id])
+  profileId String
+
+  body           String  // IEEE, ISTE, IET, etc.
+  membershipType String? // e.g. Senior Member, Fellow
+  membershipId   String?
+  joinedYear     Int
+
+  source    RecordSource @default(NATIVE)
+  createdAt DateTime     @default(now())
+}
+
+model EditorialRole {
+  id        String         @id @default(cuid())
+  profile   FacultyProfile @relation(fields: [profileId], references: [id])
+  profileId String
+
+  journal String
+  role    String  // Editor, Reviewer, Associate Editor
+  since   Int
+  until   Int?
+
+  source    RecordSource @default(NATIVE)
+  createdAt DateTime     @default(now())
+}
+
+// ============================================================
+// CLUSTER 5 — FACULTY DEVELOPMENT & GROWTH
+// ============================================================
+
+model FacultyDevelopment {
+  id        String         @id @default(cuid())
+  profile   FacultyProfile @relation(fields: [profileId], references: [id])
+  profileId String
+
+  name             String
+  organizer        String
+  startDate        DateTime
+  endDate          DateTime
+  durationDays     Int
+  role             FDPRole
+  participantCount Int?     // relevant when role = ORGANIZER
+
+  certificateDocumentId String?
+  approvalStatus        ApprovalStatus   @default(PENDING_HOD)
+  approvalRecords       ApprovalRecord[] @relation("FDPApprovals")
+  autoApproved          Boolean          @default(false) // true if HoD did not act within 7 days
+
+  source    RecordSource @default(NATIVE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([profileId])
+}
+
+model MOOCCompletion {
+  id        String         @id @default(cuid())
+  profile   FacultyProfile @relation(fields: [profileId], references: [id])
+  profileId String
+
+  courseName     String
+  platform       String   // Coursera, NPTEL, edX, Udemy, etc.
+  completionDate DateTime
+  grade          String?
+  durationWeeks  Int?
+
+  certificateDocumentId String?
+  source                RecordSource @default(NATIVE)
+  createdAt             DateTime     @default(now())
+}
+
+model InternationalVisit {
+  id        String         @id @default(cuid())
+  profile   FacultyProfile @relation(fields: [profileId], references: [id])
+  profileId String
+
+  country       String
+  institution   String
+  purpose       String
+  startDate     DateTime
+  endDate       DateTime
+  fundingSource String?
+
+  proofDocumentId String?
+  source          RecordSource @default(NATIVE)
+  createdAt       DateTime     @default(now())
+}
+
+// ============================================================
+// CLUSTER 6 — ADMINISTRATIVE & LIFECYCLE
+// ============================================================
+
+model LeaveRecord {
+  id        String         @id @default(cuid())
+  profile   FacultyProfile @relation(fields: [profileId], references: [id])
+  profileId String
+
+  type           LeaveType
+  startDate      DateTime
+  endDate        DateTime
+  days           Int
+  reason         String?
+  approvalStatus ApprovalStatus @default(PENDING_HOD)
+
+  hrSystemRef  String?  // reference ID from HR system
+  lastSyncedAt DateTime? // timestamp of last HR sync
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model APAR {
+  id        String         @id @default(cuid())
+  profile   FacultyProfile @relation(fields: [profileId], references: [id])
+  profileId String
+
+  academicYear String    // e.g. "2025-26"
+  status       APARStatus @default(OPEN)
+
+  // Self-appraisal (stored as JSON for flexibility across appraisal cycles)
+  teachingSelf  Json?
+  researchSelf  Json?
+  adminSelf     Json?
+  selfComments  String?
+  submittedAt   DateTime?
+
+  // HoD review
+  hodGrade      String?
+  hodComments   String?
+  hodReviewedAt DateTime?
+
+  // Dean review
+  deanGrade      String?
+  deanComments   String?
+  deanReviewedAt DateTime?
+
+  // Director / HR final
+  finalGrade    String?
+  finalComments String?
+  completedAt   DateTime?
+
+  // Computed from UGC CAS formula
+  apiScore          Float?
+  promotionEligible Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([profileId, academicYear])
+}
+
+model CommitteeRole {
+  id        String         @id @default(cuid())
+  profile   FacultyProfile @relation(fields: [profileId], references: [id])
+  profileId String
+
+  committeeName String
+  role          String
+  startYear     Int
+  endYear       Int?
+
+  source    RecordSource @default(NATIVE)
+  createdAt DateTime     @default(now())
+}
+
+model ExamDuty {
+  id        String         @id @default(cuid())
+  profile   FacultyProfile @relation(fields: [profileId], references: [id])
+  profileId String
+
+  examName String
+  role     String   // Invigilator, Flying Squad, Chief Superintendent, etc.
+  date     DateTime
+
+  createdAt DateTime @default(now())
+}
+
+// ============================================================
+// APPROVAL ENGINE
+// ============================================================
+
+model ApprovalRecord {
+  id      String @id @default(cuid())
+  actor   User   @relation(fields: [actorId], references: [id])
+  actorId String
+
+  // One FK per approvable entity type (only one will be set per record)
+  publication   Publication?       @relation("PublicationApprovals", fields: [publicationId], references: [id])
+  publicationId String?
+  grant         ResearchGrant?     @relation("GrantApprovals", fields: [grantId], references: [id])
+  grantId       String?
+  patent        Patent?            @relation("PatentApprovals", fields: [patentId], references: [id])
+  patentId      String?
+  phdScholar    PhDScholar?        @relation("PhDScholarApprovals", fields: [phdScholarId], references: [id])
+  phdScholarId  String?
+  award         Award?             @relation("AwardApprovals", fields: [awardId], references: [id])
+  awardId       String?
+  invitedTalk   InvitedTalk?       @relation("InvitedTalkApprovals", fields: [invitedTalkId], references: [id])
+  invitedTalkId String?
+  fdp           FacultyDevelopment? @relation("FDPApprovals", fields: [fdpId], references: [id])
+  fdpId         String?
+
+  fromStatus ApprovalStatus
+  toStatus   ApprovalStatus
+  action     String         // APPROVED | REJECTED | ESCALATED | AUTO_APPROVED | RETURNED
+  comments   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+}
+
+// ============================================================
+// PRAJNA SCORE & LEADERBOARD
+// ============================================================
+
+model PrajnaScore {
+  id        String         @id @default(cuid())
+  profile   FacultyProfile @relation(fields: [profileId], references: [id])
+  profileId String         @unique
+
+  total Float     @default(0)
+  tier  ScoreTier @default(BRONZE)
+
+  // Sub-scores matching the 6 dimensions
+  teachingScore     Float @default(0) // 25%
+  researchScore     Float @default(0) // 30%
+  developmentScore  Float @default(0) // 20%
+  achievementsScore Float @default(0) // 10%
+  adminScore        Float @default(0) // 10%
+  completenessBonus Float @default(0) // 5%
+
+  // Ranks (cached; recomputed on score changes)
+  departmentRank Int?
+  schoolRank     Int?
+  campusRank     Int?
+
+  computedAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model AppreciationBadge {
+  id          String   @id @default(cuid())
+  sender      User     @relation("BadgeSender", fields: [senderId], references: [id])
+  senderId    String
+  recipient   User     @relation("BadgeRecipient", fields: [recipientId], references: [id])
+  recipientId String
+  message     String
+  createdAt   DateTime @default(now())
+
+  @@index([recipientId])
+}
+
+// ============================================================
+// AI COMPANION (PRIVATE TO FACULTY — NEVER EXPOSE TO OTHER ROLES)
+// ============================================================
+
+model AIConversation {
+  id     String @id @default(cuid())
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+
+  messages AIMessage[]
+
+  // Rolling sentiment score (-1 to 1), used to calibrate companion tone
+  sentimentScore Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model AIMessage {
+  id             String         @id @default(cuid())
+  conversation   AIConversation @relation(fields: [conversationId], references: [id])
+  conversationId String
+
+  role    String // "user" | "assistant"
+  content String
+
+  createdAt DateTime @default(now())
+}
+
+model DailyReflection {
+  id        String         @id @default(cuid())
+  profile   FacultyProfile @relation(fields: [profileId], references: [id])
+  profileId String
+
+  date       DateTime @db.Date
+  rating     Int?     // 1–5 (optional day rating)
+  reflection String?  // private faculty note
+
+  createdAt DateTime @default(now())
+
+  @@unique([profileId, date])
+}
+
+// ============================================================
+// DOCUMENT VAULT (AWS S3)
+// ============================================================
+
+model Document {
+  id           String         @id @default(cuid())
+  s3Key        String         @unique
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  scanStatus   DocumentStatus @default(PENDING_SCAN)
+
+  uploadedBy String // User.id
+  entityType String // e.g. "Publication", "FacultyDevelopment"
+  entityId   String // ID of the owning record
+
+  createdAt DateTime @default(now())
+
+  @@index([entityType, entityId])
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+
+model Notification {
+  id     String @id @default(cuid())
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+
+  title   String
+  body    String
+  channel NotificationChannel
+  status  NotificationStatus  @default(PENDING)
+
+  idempotencyKey String             @unique
+  retryCount     Int                @default(0)
+  sentAt         DateTime?
+  failureReason  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, status])
+}
+
+// ============================================================
+// AUTH — REFRESH TOKENS & OTP
+// ============================================================
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  token     String    @unique          // SHA-256 hash of the opaque random token
+  user      User      @relation(fields: [userId], references: [id])
+  userId    String
+  expiresAt DateTime
+  revokedAt DateTime?                  // null = still valid
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model OTPCode {
+  id        String     @id @default(cuid())
+  user      User       @relation(fields: [userId], references: [id])
+  userId    String
+  codeHash  String                     // bcrypt hash of the 6-digit code
+  purpose   OTPPurpose
+  expiresAt DateTime                   // 10 min from creation
+  usedAt    DateTime?                  // null = not yet consumed
+  createdAt DateTime   @default(now())
+
+  @@index([userId, purpose])
+}
+
+// ============================================================
+// AUDIT LOG (IMMUTABLE — NO UPDATES OR DELETES)
+// ============================================================
+
+model AuditLog {
+  id      String @id @default(cuid())
+  actor   User   @relation(fields: [actorId], references: [id])
+  actorId String
+
+  action     String // e.g. "PUBLICATION_CREATED", "APAR_SUBMITTED"
+  entityType String // e.g. "Publication", "FacultyProfile"
+  entityId   String
+
+  before Json? // state snapshot before change
+  after  Json? // state snapshot after change
+
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
 }
