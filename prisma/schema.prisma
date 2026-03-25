@@ -179,9 +179,7 @@ model Department {
   hod       User?          @relation("HoDOfDepartment", fields: [hodId], references: [id])
   hodId     String?        @unique
   faculty   User[]         @relation("FacultyInDepartment")
-  createdAt DateTime       @default(now())
-
-  @@unique([code, schoolId])
+  createdAt Date
 }
 
 // ============================================================
