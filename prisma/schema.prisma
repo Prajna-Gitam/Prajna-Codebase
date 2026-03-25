@@ -281,14 +281,7 @@ model FacultyProfile {
   memberships         ProfessionalMembership[]
   editorialRoles      EditorialRole[]
   fdps                FacultyDevelopment[]
-  moocs               MOOCCompletion[]
-  internationalVisits InternationalVisit[]
-  leaveRecords        LeaveRecord[]
-  apars               APAR[]
-  committeeRoles      CommitteeRole[]
-  examDuties          ExamDuty[]
-  prajnaScore         PrajnaScore?
-  dailyReflections    DailyReflection[]
+  moocs               MOOCCompletion[
 }
 
 // ============================================================
