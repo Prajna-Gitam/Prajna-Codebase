@@ -13,6 +13,7 @@ jobs:
         with:
           node-version: '20'
       - run: npm ci
+      - run: npx prisma generate
       - run: npx tsc --noEmit
 
   claude-review:
@@ -34,7 +35,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          direct_prompt: |
+          prompt: |
             Review the changes in this pull request for correctness, bugs, and code quality.
             Focus on: syntax errors, logic errors, security issues, and TypeScript type safety.
             Post inline comments on specific lines where issues are found.
