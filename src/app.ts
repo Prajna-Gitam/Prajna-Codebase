@@ -17,7 +17,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/v1/auth', authRouter);
 
 // 404 fallback
-app.use((_req, res) => {
+app use((_req, res) => {
   res.status(404).json({
     error: {
       code: 'NOT_FOUND',
