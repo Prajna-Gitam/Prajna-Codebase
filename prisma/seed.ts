@@ -71,17 +71,26 @@ async function main() {
     prisma.campus.upsert({
       where: { code: CampusCode.BENGALURU },
       update: {},
-      create: { code: CampusCode.BENGALURU, name: "GITAM (Deemed to be University), Bengaluru" },
+      create: {
+        code: CampusCode.BENGALURU,
+        name: "GITAM (Deemed to be University), Bengaluru",
+      },
     }),
     prisma.campus.upsert({
       where: { code: CampusCode.VISAKHAPATNAM },
       update: {},
-      create: { code: CampusCode.VISAKHAPATNAM, name: "GITAM (Deemed to be University), Visakhapatnam" },
+      create: {
+        code: CampusCode.VISAKHAPATNAM,
+        name: "GITAM (Deemed to be University), Visakhapatnam",
+      },
     }),
     prisma.campus.upsert({
       where: { code: CampusCode.HYDERABAD },
       update: {},
-      create: { code: CampusCode.HYDERABAD, name: "GITAM (Deemed to be University), Hyderabad" },
+      create: {
+        code: CampusCode.HYDERABAD,
+        name: "GITAM (Deemed to be University), Hyderabad",
+      },
     }),
   ]);
   console.log("  ✓ Campuses");
@@ -90,17 +99,23 @@ async function main() {
   // SCHOOLS (one per campus for seed)
   // ------------------------------------------------------------------
   const schoolBLR = await prisma.school.upsert({
-    where: { name_campusId: { name: "School of Technology", campusId: bengaluru.id } },
+    where: {
+      name_campusId: { name: "School of Technology", campusId: bengaluru.id },
+    },
     update: {},
     create: { name: "School of Technology", campusId: bengaluru.id },
   });
   const schoolVZG = await prisma.school.upsert({
-    where: { name_campusId: { name: "School of Technology", campusId: vizag.id } },
+    where: {
+      name_campusId: { name: "School of Technology", campusId: vizag.id },
+    },
     update: {},
     create: { name: "School of Technology", campusId: vizag.id },
   });
   const schoolHYD = await prisma.school.upsert({
-    where: { name_campusId: { name: "School of Technology", campusId: hyderabad.id } },
+    where: {
+      name_campusId: { name: "School of Technology", campusId: hyderabad.id },
+    },
     update: {},
     create: { name: "School of Technology", campusId: hyderabad.id },
   });
@@ -112,22 +127,38 @@ async function main() {
   const deptCSE_BLR = await prisma.department.upsert({
     where: { code_schoolId: { code: "CSE-BLR", schoolId: schoolBLR.id } },
     update: {},
-    create: { name: "Computer Science & Engineering", code: "CSE-BLR", schoolId: schoolBLR.id },
+    create: {
+      name: "Computer Science & Engineering",
+      code: "CSE-BLR",
+      schoolId: schoolBLR.id,
+    },
   });
   const deptECE_BLR = await prisma.department.upsert({
     where: { code_schoolId: { code: "ECE-BLR", schoolId: schoolBLR.id } },
     update: {},
-    create: { name: "Electronics & Communication Engineering", code: "ECE-BLR", schoolId: schoolBLR.id },
+    create: {
+      name: "Electronics & Communication Engineering",
+      code: "ECE-BLR",
+      schoolId: schoolBLR.id,
+    },
   });
   const deptCSE_VZG = await prisma.department.upsert({
     where: { code_schoolId: { code: "CSE-VZG", schoolId: schoolVZG.id } },
     update: {},
-    create: { name: "Computer Science & Engineering", code: "CSE-VZG", schoolId: schoolVZG.id },
+    create: {
+      name: "Computer Science & Engineering",
+      code: "CSE-VZG",
+      schoolId: schoolVZG.id,
+    },
   });
   const deptME_HYD = await prisma.department.upsert({
     where: { code_schoolId: { code: "ME-HYD", schoolId: schoolHYD.id } },
     update: {},
-    create: { name: "Mechanical Engineering", code: "ME-HYD", schoolId: schoolHYD.id },
+    create: {
+      name: "Mechanical Engineering",
+      code: "ME-HYD",
+      schoolId: schoolHYD.id,
+    },
   });
   console.log("  ✓ Departments");
 
@@ -135,7 +166,8 @@ async function main() {
   // USERS — Director, Deans, HoDs, Faculty
   // (passwordHash is a placeholder — bcrypt not installed in seed)
   // ------------------------------------------------------------------
-  const PLACEHOLDER_HASH = "$2b$10$placeholderHashForSeedDataOnly000000000000000000000";
+  const PLACEHOLDER_HASH =
+    "$2b$10$placeholderHashForSeedDataOnly000000000000000000000";
 
   // Director (campus-agnostic — we assign to Vizag as home campus)
   const director = await prisma.user.upsert({
@@ -173,6 +205,8 @@ async function main() {
       campusId: vizag.id,
     },
   });
+
+  console.log("DO NOT PUSH TO GITHUB");
 
   // IQAC Coordinator
   const iqac = await prisma.user.upsert({
@@ -239,11 +273,26 @@ async function main() {
   });
 
   // Wire deans and HoDs back to schools/departments
-  await prisma.school.update({ where: { id: schoolBLR.id }, data: { deanId: deanBLR.id } });
-  await prisma.school.update({ where: { id: schoolVZG.id }, data: { deanId: deanVZG.id } });
-  await prisma.department.update({ where: { id: deptCSE_BLR.id }, data: { hodId: hodCSE_BLR.id } });
-  await prisma.department.update({ where: { id: deptECE_BLR.id }, data: { hodId: hodECE_BLR.id } });
-  await prisma.department.update({ where: { id: deptCSE_VZG.id }, data: { hodId: hodCSE_VZG.id } });
+  await prisma.school.update({
+    where: { id: schoolBLR.id },
+    data: { deanId: deanBLR.id },
+  });
+  await prisma.school.update({
+    where: { id: schoolVZG.id },
+    data: { deanId: deanVZG.id },
+  });
+  await prisma.department.update({
+    where: { id: deptCSE_BLR.id },
+    data: { hodId: hodCSE_BLR.id },
+  });
+  await prisma.department.update({
+    where: { id: deptECE_BLR.id },
+    data: { hodId: hodECE_BLR.id },
+  });
+  await prisma.department.update({
+    where: { id: deptCSE_VZG.id },
+    data: { hodId: hodCSE_VZG.id },
+  });
 
   // Faculty members
   const faculty1 = await prisma.user.upsert({
@@ -481,7 +530,8 @@ async function main() {
       date: new Date("2025-10-15"),
       topic: "Backpropagation and Gradient Descent — revisited",
       studentsCount: 12,
-      notes: "Students struggling with chain rule application in deep networks.",
+      notes:
+        "Students struggling with chain rule application in deep networks.",
     },
   });
   console.log("  ✓ Teaching assignments, CO-PO mappings, remedial sessions");
@@ -547,7 +597,8 @@ async function main() {
     data: {
       profileId: profile4.id,
       type: PublicationType.JOURNAL,
-      title: "Byzantine-Fault-Tolerant BFT Consensus for Permissioned Blockchains",
+      title:
+        "Byzantine-Fault-Tolerant BFT Consensus for Permissioned Blockchains",
       doi: "10.1109/TPDS.2023.3301112",
       journal: "IEEE Transactions on Parallel and Distributed Systems",
       year: 2023,
@@ -563,7 +614,8 @@ async function main() {
   await prisma.researchGrant.create({
     data: {
       profileId: profile1.id,
-      title: "AI-Powered Early Detection of Diabetic Retinopathy in Rural India",
+      title:
+        "AI-Powered Early Detection of Diabetic Retinopathy in Rural India",
       agency: "Department of Science & Technology (DST), Govt. of India",
       amount: 4200000,
       isPrincipalInvestigator: true,
@@ -591,7 +643,8 @@ async function main() {
   await prisma.patent.create({
     data: {
       profileId: profile1.id,
-      title: "System and Method for Real-Time Tumour Boundary Detection Using Hybrid CNN-Transformer",
+      title:
+        "System and Method for Real-Time Tumour Boundary Detection Using Hybrid CNN-Transformer",
       applicationNumber: "202341056789",
       filingDate: new Date("2023-08-15"),
       status: PatentStatus.PUBLISHED,
@@ -758,7 +811,8 @@ async function main() {
       profileId: profile1.id,
       country: "United States",
       institution: "MIT — Computer Science & AI Lab",
-      purpose: "Collaborative research on federated learning with Prof. M. Kellis",
+      purpose:
+        "Collaborative research on federated learning with Prof. M. Kellis",
       startDate: new Date("2024-06-01"),
       endDate: new Date("2024-06-30"),
       fundingSource: "DST-SERB International Travel Support",
@@ -774,10 +828,15 @@ async function main() {
       profileId: profile1.id,
       academicYear: "2024-25",
       status: APARStatus.COMPLETED,
-      teachingSelf: { courses: 3, avgFeedback: 4.4, attendanceMaintained: true },
+      teachingSelf: {
+        courses: 3,
+        avgFeedback: 4.4,
+        attendanceMaintained: true,
+      },
       researchSelf: { publications: 2, grants: 1, patents: 1 },
       adminSelf: { committees: 2, examDuties: 3 },
-      selfComments: "Successfully completed DST project milestone 2. Planning CVPR submission.",
+      selfComments:
+        "Successfully completed DST project milestone 2. Planning CVPR submission.",
       submittedAt: new Date("2025-03-15"),
       hodGrade: "Outstanding",
       hodComments: "Exceptional research output and student mentoring.",
@@ -798,7 +857,8 @@ async function main() {
       status: APARStatus.SUBMITTED,
       teachingSelf: { courses: 2, avgFeedback: 4.7 },
       researchSelf: { publications: 1, grants: 1 },
-      selfComments: "MeitY project on track. Two journal submissions under review.",
+      selfComments:
+        "MeitY project on track. Two journal submissions under review.",
       submittedAt: new Date("2025-03-10"),
     },
   });
@@ -876,11 +936,11 @@ async function main() {
         profileId: profile1.id,
         total: 84.2,
         tier: ScoreTier.PLATINUM,
-        teachingScore: 22.1,   // 25% dim — 88.4% of max
-        researchScore: 28.5,   // 30% dim — 95.0% of max
+        teachingScore: 22.1, // 25% dim — 88.4% of max
+        researchScore: 28.5, // 30% dim — 95.0% of max
         developmentScore: 16.8, // 20% dim — 84.0% of max
         achievementsScore: 8.2, // 10% dim
-        adminScore: 4.1,        // 10% dim
+        adminScore: 4.1, // 10% dim
         completenessBonus: 4.5, // 5% dim
         departmentRank: 1,
         schoolRank: 1,
@@ -939,7 +999,8 @@ async function main() {
     data: {
       senderId: director.id,
       recipientId: faculty1.id,
-      message: "Outstanding research impact — your DST project is a model for AI in healthcare. Keep inspiring! 🌟",
+      message:
+        "Outstanding research impact — your DST project is a model for AI in healthcare. Keep inspiring! 🌟",
     },
   });
   console.log("  ✓ Appreciation badges");
@@ -984,7 +1045,8 @@ async function main() {
       profileId: profile1.id,
       date: new Date("2026-03-23"),
       rating: 4,
-      reflection: "Productive day — wrapped up experiments for CVPR revision. Students in CS601 finally getting backprop.",
+      reflection:
+        "Productive day — wrapped up experiments for CVPR revision. Students in CS601 finally getting backprop.",
     },
   });
   console.log("  ✓ Daily reflection");
@@ -1035,7 +1097,11 @@ async function main() {
         action: "PUBLICATION_CREATED",
         entityType: "Publication",
         entityId: pub1.id,
-        after: { doi: "10.1016/j.media.2024.102987", title: "Attention-Based U-Net...", status: "PENDING_HOD" },
+        after: {
+          doi: "10.1016/j.media.2024.102987",
+          title: "Attention-Based U-Net...",
+          status: "PENDING_HOD",
+        },
         ipAddress: "10.0.1.42",
       },
       {
@@ -1070,7 +1136,9 @@ async function main() {
 
   console.log("\n✅ Seed complete.");
   console.log("   Campuses: 3 | Schools: 3 | Departments: 4");
-  console.log("   Users: 1 Director, 2 Deans, 1 IQAC, 1 SysAdmin, 3 HoDs, 4 Faculty");
+  console.log(
+    "   Users: 1 Director, 2 Deans, 1 IQAC, 1 SysAdmin, 3 HoDs, 4 Faculty",
+  );
   console.log("   Faculty profiles: 4 (Platinum · Gold · Gold · Bronze)");
   console.log("   Publications: 4 | Grants: 2 | Patents: 1 | PhD Scholars: 2");
   console.log("   Awards: 2 | FDPs: 3 | MOOCs: 2 | Teaching Assignments: 4");
