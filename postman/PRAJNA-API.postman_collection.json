@@ -1,0 +1,210 @@
+{
+  "info": {
+    "name": "PRAJNA API",
+    "description": "Endpoints implemented in the Prajna codebase (health + auth v1).\n\n**Environment:** Import `PRAJNA-Local.postman_environment.json` and select **PRAJNA — Local** in the environment dropdown (sets `baseUrl`).\n\n**Variables:** Set `baseUrl` (default `http://localhost:3000`). After **Login** or **MFA Verify**, scripts save `accessToken` and optionally `mfaChallengeToken`.\n\n**Cookies:** **Refresh** and **Logout** use the `refreshToken` httpOnly cookie. In Postman: enable the cookie jar (default on) and use the same domain as `baseUrl` so login/MFA verify can set the cookie for subsequent requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "accessToken", "value": "" },
+    { "key": "mfaChallengeToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health",
+            "description": "Returns `{ status: \"ok\", timestamp: ISO string }`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const j = pm.response.json();",
+                  "  if (j.accessToken) pm.collectionVariables.set('accessToken', j.accessToken);",
+                  "  if (j.mfaChallengeToken) pm.collectionVariables.set('mfaChallengeToken', j.mfaChallengeToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"faculty@example.com\",\n  \"password\": \"YourPassword1!\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "description": "Body: `identifier` (email), `password`.\n\n- Success (no MFA): sets `refreshToken` cookie + `{ accessToken, user }`.\n- MFA path: `{ mfaRequired: true, mfaChallengeToken, otpSentTo }` — challenge token is saved for MFA requests."
+          },
+          "response": []
+        },
+        {
+          "name": "POST MFA Send OTP",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{mfaChallengeToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [],
+            "body": { "mode": "raw", "raw": "" },
+            "url": "{{baseUrl}}/api/v1/auth/mfa/send-otp",
+            "description": "Authorization: `Bearer <mfaChallengeToken>` (same value as `mfaChallengeToken` from login response). No body required."
+          },
+          "response": []
+        },
+        {
+          "name": "POST MFA Verify",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const j = pm.response.json();",
+                  "  if (j.accessToken) pm.collectionVariables.set('accessToken', j.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{mfaChallengeToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"otp\": \"123456\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/mfa/verify",
+            "description": "Bearer = MFA challenge token. Body: `otp` as **string**, exactly 6 digits."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Refresh",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": { "mode": "raw", "raw": "" },
+            "url": "{{baseUrl}}/api/v1/auth/refresh",
+            "description": "Sends `refreshToken` from cookies; returns `{ accessToken }` and rotates the cookie. Run **Login** or **MFA Verify** first in the same Postman session."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const j = pm.response.json();",
+                  "  if (j.accessToken) pm.collectionVariables.set('accessToken', j.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "POST Logout",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [],
+            "body": { "mode": "raw", "raw": "" },
+            "url": "{{baseUrl}}/api/v1/auth/logout",
+            "description": "Optional Bearer access token (audit log). Refresh cookie revoked if present. Clears `refreshToken` cookie."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Me",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/auth/me",
+            "description": "Requires valid access JWT."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Change Password",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"OldPassword1!\",\n  \"newPassword\": \"NewPassword1!\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/change-password",
+            "description": "New password rules: min 8 chars, 1 uppercase, 1 digit, 1 special character."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"faculty@example.com\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/forgot-password",
+            "description": "Always returns generic success message (no user enumeration)."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"faculty@example.com\",\n  \"otp\": \"123456\",\n  \"newPassword\": \"NewPassword1!\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/reset-password",
+            "description": "Uses email + OTP from reset flow + new password (same complexity rules as change-password)."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
